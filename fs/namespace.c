@@ -171,6 +171,9 @@ static void mnt_free_id(struct mount *mnt)
 	int id = mnt->mnt_id;
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 	int mnt_id_backup = mnt->mnt.susfs_mnt_id_backup;
+	bool id_exists;
+	int allocated_id;
+
 	// We should first check the 'mnt->mnt.susfs_mnt_id_backup', see if it is DEFAULT_SUS_MNT_ID_FOR_KSU_PROC_UNSHARE
 	// if so, these mnt_id were not assigned by mnt_alloc_id() so we don't need to free it.
 	if (unlikely(mnt_id_backup == DEFAULT_SUS_MNT_ID_FOR_KSU_PROC_UNSHARE)) {
@@ -179,9 +182,14 @@ static void mnt_free_id(struct mount *mnt)
 	// Now we can check if its mnt_id is sus
 	if (unlikely(mnt->mnt_id >= DEFAULT_SUS_MNT_ID)) {
 		spin_lock(&mnt_id_lock);
-		ida_remove(&susfs_mnt_id_ida, id);
-		if (susfs_mnt_id_start > id)
-			susfs_mnt_id_start = id;
+		id_exists = ida_get_new_above(&susfs_mnt_id_ida, id, &allocated_id) == -ENOSPC;
+		if (id_exists) {
+			ida_remove(&susfs_mnt_id_ida, id);
+			if (susfs_mnt_id_start > id)
+				susfs_mnt_id_start = id;
+		} else if (allocated_id >= 0) {
+			ida_remove(&susfs_mnt_id_ida, allocated_id);
+		}
 		spin_unlock(&mnt_id_lock);
 		return;
 	}
@@ -191,9 +199,14 @@ static void mnt_free_id(struct mount *mnt)
 		// If mnt->mnt.susfs_mnt_id_backup is not zero, it means mnt->mnt_id is spoofed,
 		// so here we return the original mnt_id for being freed.
 		spin_lock(&mnt_id_lock);
-		ida_remove(&mnt_id_ida, mnt_id_backup);
-		if (mnt_id_start > mnt_id_backup)
-			mnt_id_start = mnt_id_backup;
+		id_exists = ida_get_new_above(&mnt_id_ida, mnt_id_backup, &allocated_id) == -ENOSPC;
+		if (id_exists) {
+			ida_remove(&mnt_id_ida, mnt_id_backup);
+			if (mnt_id_start > mnt_id_backup)
+				mnt_id_start = mnt_id_backup;
+		} else if (allocated_id >= 0) {
+			ida_remove(&mnt_id_ida, allocated_id);
+		}
 		spin_unlock(&mnt_id_lock);
 		return;
 	}
@@ -249,9 +262,15 @@ void mnt_release_group_id(struct mount *mnt)
 	// If mnt->mnt_group_id >= DEFAULT_SUS_MNT_GROUP_ID, it means 'mnt' is also sus mount,
 	// then we free the mnt->mnt_group_id from susfs_mnt_group_ida
 	if (id >= DEFAULT_SUS_MNT_GROUP_ID) {
-		ida_remove(&susfs_mnt_group_ida, id);
-		if (susfs_mnt_group_start > id)
-			susfs_mnt_group_start = id;
+		int allocated_id;
+		bool id_exists = ida_get_new_above(&susfs_mnt_group_ida, id, &allocated_id) == -ENOSPC;
+		if (id_exists) {
+			ida_remove(&susfs_mnt_group_ida, id);
+			if (susfs_mnt_group_start > id)
+				susfs_mnt_group_start = id;
+		} else if (allocated_id >= 0) {
+			ida_remove(&susfs_mnt_group_ida, allocated_id);
+		}
 		mnt->mnt_group_id = 0;
 		return;
 	}

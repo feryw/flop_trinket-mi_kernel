@@ -12,22 +12,29 @@ on:
 
 jobs:
   build:
-    # A friendly name for the job.
-    name: Build Kernel on ARM64
-    # This job runs on an emulated ARM64 environment.
+    name: Build Kernel
     runs-on: ubuntu-latest
-
+    
     steps:
       - name: Checkout Kernel Source
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          
+      - name: Set up ccache
+        uses: hendrikmuhs/ccache-action@v1
+        with:
+          key: ${{ runner.os }}-kernel-build-${{ github.ref }}
+          restore-keys: |
+            ${{ runner.os }}-kernel-build-
 
       - name: Build the Kernel
         run: |
-          export USE_CCACHE=1
-          export CCACHE_EXEC=/usr/bin/ccache
-          export CCACHE_DIR=~/.ccache
+          echo "USE_CCACHE=1" >> $GITHUB_ENV
+          echo "CCACHE_DIR=${{ github.workspace }}/.ccache" >> $GITHUB_ENV
+          echo "PATH=/usr/lib/ccache:$PATH" >> $GITHUB_ENV
+          echo "CC='ccache clang'" >> $GITHUB_ENV
+          echo "CXX='ccache clang++'" >> $GITHUB_ENV
           bash do_build.sh ginkgo c k R
 
       - name: Upload Artifact

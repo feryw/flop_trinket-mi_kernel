@@ -243,7 +243,7 @@ echo -e "\nINFO: Build info:
 
 install_deps_deb() {
     # Dependencies
-    UB_DEPLIST="lz4 brotli flex bc cpio kmod ccache zip libtinfo6 python3"
+    UB_DEPLIST="lz4 brotli flex bc cpio kmod ccache zip libtinfo6 python3 ccache"
     if grep -q "Ubuntu" /etc/os-release; then
         sudo apt update -qq
         sudo apt install $UB_DEPLIST -y

@@ -42,3 +42,14 @@ jobs:
         with:
           name: KernelSU-Ginkgo-${{ github.sha }}
           path: /home/runner/work/flop_trinket-mi_kernel/*ginkgo*.zip
+
+      - name: Release Ginkgo Kernel
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ginkgo-${{ github.sha }}
+          name: KernelSU Ginkgo Build - ${{ github.sha }}
+          body: |
+            ✅ Ginkgo Kernel built with KernelSU
+          files: /home/runner/work/flop_trinket-mi_kernel/*ginkgo*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

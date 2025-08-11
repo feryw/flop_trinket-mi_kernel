@@ -43,10 +43,11 @@ jobs:
         run: |
           if [ ! -x "toolchains/aospclang/bin/clang" ]; then
             echo "INFO: AOSP Clang not found in cache. Downloading..."
+            pwd 
             mkdir -p toolchains/aospclang
             curl -L https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r547379.tar.gz \
               -o clang.tar.gz
-            tar -xzf clang.tar.gz -C toolchains/aospclang
+            tar -xzf clang.tar.gz -C toolchains/aospclang/
             rm clang.tar.gz
           else
             echo "INFO: AOSP Clang restored from cache."

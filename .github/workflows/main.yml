@@ -25,7 +25,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install apt-utils -y
-          sudo apt-get install build-essential libncurses-dev bc flex bison libssl-dev ccache clang llvm lld -y
+          sudo apt-get install ccache clang llvm lld -y
           sudo hostnamectl set-hostname wyref
 
       - name: Checkout Kernel Source

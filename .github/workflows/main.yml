@@ -44,11 +44,11 @@ jobs:
 
       - name: Build the Kernel
         run: |
-          echo "USE_CCACHE=1" >> $GITHUB_ENV
-          echo "CCACHE_DIR=${{ github.workspace }}/.ccache" >> $GITHUB_ENV
-          echo "PATH=/usr/lib/ccache:$PATH" >> $GITHUB_ENV
-          echo "CC='ccache clang'" >> $GITHUB_ENV
-          echo "CXX='ccache clang++'" >> $GITHUB_ENV
+          # echo "USE_CCACHE=1" >> $GITHUB_ENV
+          # echo "CCACHE_DIR=${{ github.workspace }}/.ccache" >> $GITHUB_ENV
+          # echo "PATH=/usr/lib/ccache:$PATH" >> $GITHUB_ENV
+          # echo "CC='ccache clang'" >> $GITHUB_ENV
+          # echo "CXX='ccache clang++'" >> $GITHUB_ENV
           bash do_build.sh ginkgo c k R
 
       - name: Upload Artifact

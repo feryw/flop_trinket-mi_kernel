@@ -261,6 +261,9 @@ get_toolchain() {
         aosp)
             toolchain_dir="$AC_DIR"
             USE_GCC_BINUTILS=1
+            pwd
+            ls -alh
+            ls -alh toolchains/aospclang/bin/clang
             if [[ ! -d "$toolchain_dir" ]]; then
                 echo -e "\nINFO: AOSP Clang not found! Cloning to $toolchain_dir..."
                 CURRENT_CLANG=$(curl -s "$AOSP_REPO" | grep -oE "clang-r[0-9a-f]+" | sort -u | tail -n1)

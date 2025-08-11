@@ -36,24 +36,24 @@ jobs:
       - name: Restore AOSP Clang from cache
         uses: actions/cache@v3
         with:
-          path: toolchains/aospclang
+          path: ../toolchains/aospclang
           key: aospclang-${{ runner.os }}-r547379
 
       - name: Download and extract AOSP Clang if missing
         run: |
-          if [ ! -x "toolchains/aospclang/bin/clang" ]; then
+          if [ ! -x "../toolchains/aospclang/bin/clang" ]; then
             echo "INFO: AOSP Clang not found in cache. Downloading..."
             pwd 
-            mkdir -p toolchains/aospclang
+            mkdir -p ../toolchains/aospclang
             curl -L https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r547379.tar.gz \
-              -o clang.tar.gz
-            tar -xzf clang.tar.gz -C toolchains/aospclang/
-            rm clang.tar.gz
-            ls -alh toolchains/aospclang/bin/clang
+              -o ../clang.tar.gz
+            tar -xzf clang.tar.gz -C ../toolchains/aospclang/
+            rm ../clang.tar.gz
+            ls -alh ../toolchains/aospclang/bin/clang
           else
             echo "INFO: AOSP Clang restored from cache."
             pwd 
-            ls -alh toolchains/aospclang/bin/clang
+            ls -alh ../toolchains/aospclang/bin/clang
           fi
           
       - name: Set up ccache

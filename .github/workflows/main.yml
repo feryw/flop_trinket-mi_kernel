@@ -13,7 +13,7 @@ on:
 jobs:
   build:
     name: Build Kernel
-    runs-on: ubuntu-22.04-arm
+    runs-on: ubuntu-22.04
     
     steps:
       - name: Checkout Kernel Source
@@ -24,7 +24,7 @@ jobs:
       - name: Set up ccache
         uses: hendrikmuhs/ccache-action@v1
         with:
-          key: ${{ runner.os }}-kernel-build-${{ github.ref }}
+          key: ${{ runner.os }}-kernel-build
           restore-keys: |
             ${{ runner.os }}-kernel-build-
 

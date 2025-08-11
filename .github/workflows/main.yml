@@ -14,8 +14,21 @@ jobs:
   build:
     name: Build Kernel
     runs-on: ubuntu-22.04
-    
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      USE_CCACHE: 1
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      PATH: /usr/lib/ccache:${{ env.PATH }}
+      CC: ccache clang
+      CXX: ccache clang++
     steps:
+       - name: Install dependencies
+        run: |
+          apt-get update -y
+          apt-get install apt-utils -y
+          apt-get install build-essential libncurses-dev bc flex bison libssl-dev ccache clang llvm lld -y
+          sudo hostnamectl set-hostname wyref
+          
       - name: Checkout Kernel Source
         uses: actions/checkout@v4
         with:

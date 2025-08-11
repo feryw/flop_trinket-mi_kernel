@@ -1,5 +1,5 @@
 # A friendly name for the workflow, shown in the GitHub Actions tab.
-name: Build Ginkgo Kernel (KernelSU)
+name: Build Ginkgo Kernel (KernelSU) on SelfHost
 
 # Controls when the action will run.
 on:

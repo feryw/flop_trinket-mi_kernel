@@ -52,6 +52,8 @@ jobs:
             ls -alh toolchains/aospclang/bin/clang
           else
             echo "INFO: AOSP Clang restored from cache."
+            pwd 
+            ls -alh toolchains/aospclang/bin/clang
           fi
           
       - name: Set up ccache

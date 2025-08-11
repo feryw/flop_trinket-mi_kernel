@@ -263,7 +263,7 @@ get_toolchain() {
             USE_GCC_BINUTILS=1
             if [[ ! -d "$toolchain_dir" ]]; then
                 echo -e "\nINFO: AOSP Clang not found! Cloning to $toolchain_dir..."
-                CURRENT_CLANG=$(curl -s "$AOSP_REPO" | grep -oE "clang-stable" | sort -u | tail -n1)
+                CURRENT_CLANG=$(curl -s "$AOSP_REPO" | grep -oE "clang-r[0-9a-f]+" | sort -u | tail -n1)
                 if ! curl -LSsO "$AOSP_ARCHIVE/$CURRENT_CLANG.tar.gz"; then
                     echo -e "\nERROR: Cloning failed! Aborting..."
                     exit 1

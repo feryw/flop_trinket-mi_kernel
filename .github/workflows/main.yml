@@ -18,7 +18,7 @@ jobs:
       DEBIAN_FRONTEND: noninteractive
       USE_CCACHE: 1
       CCACHE_DIR: ${{ github.workspace }}/.ccache
-      PATH: /usr/lib/ccache:${{ env.PATH }}
+      PATH: /usr/lib/ccache:$PATH
       CC: ccache clang
       CXX: ccache clang++
     steps:

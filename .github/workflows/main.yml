@@ -22,17 +22,17 @@ jobs:
       CC: ccache clang
       CXX: ccache clang++
     steps:
-      - name: Install dependencies
-        run: |
-          sudo apt update -y
-          sudo apt install apt-utils -y
-          sudo apt install build-essential libncurses-dev bc flex bison libssl-dev ccache clang llvm lld -y
-          sudo hostnamectl set-hostname wyref
-          
       - name: Checkout Kernel Source
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install apt-utils -y
+          sudo apt-get install build-essential libncurses-dev bc flex bison libssl-dev ccache clang llvm lld -y
+          sudo hostnamectl set-hostname wyref
           
       - name: Set up ccache
         uses: hendrikmuhs/ccache-action@v1

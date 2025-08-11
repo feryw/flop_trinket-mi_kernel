@@ -49,6 +49,7 @@ jobs:
               -o clang.tar.gz
             tar -xzf clang.tar.gz -C toolchains/aospclang/
             rm clang.tar.gz
+            ls -alh toolchains/aospclang/bin/clang
           else
             echo "INFO: AOSP Clang restored from cache."
           fi

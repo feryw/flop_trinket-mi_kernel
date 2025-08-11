@@ -24,9 +24,9 @@ jobs:
     steps:
       - name: Install dependencies
         run: |
-          apt-get update -y
-          apt-get install apt-utils -y
-          apt-get install build-essential libncurses-dev bc flex bison libssl-dev ccache clang llvm lld -y
+          apt update -y
+          apt install apt-utils -y
+          apt install build-essential libncurses-dev bc flex bison libssl-dev ccache clang llvm lld -y
           sudo hostnamectl set-hostname wyref
           
       - name: Checkout Kernel Source

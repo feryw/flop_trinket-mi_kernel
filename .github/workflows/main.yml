@@ -21,8 +21,9 @@ jobs:
       PATH: /usr/lib/ccache:${{ env.PATH }}
       CC: ccache clang
       CXX: ccache clang++
+      
     steps:
-       - name: Install dependencies
+      - name: Install dependencies
         run: |
           apt-get update -y
           apt-get install apt-utils -y

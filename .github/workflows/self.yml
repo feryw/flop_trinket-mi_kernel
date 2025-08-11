@@ -1,0 +1,55 @@
+# A friendly name for the workflow, shown in the GitHub Actions tab.
+name: Build Ginkgo Kernel (KernelSU)
+
+# Controls when the action will run.
+on:
+  # Allows you to run this workflow manually from the Actions tab.
+  workflow_dispatch:
+  # Triggers the workflow on push events to the main branch.
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build Kernel
+    runs-on: self-hosted
+    
+    steps:
+      - name: Checkout Kernel Source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          
+      - name: Set up ccache
+        uses: hendrikmuhs/ccache-action@v1
+        with:
+          key: ${{ runner.os }}-kernel-build-${{ github.ref }}
+          restore-keys: |
+            ${{ runner.os }}-kernel-build-
+
+      - name: Build the Kernel
+        run: |
+          echo "USE_CCACHE=1" >> $GITHUB_ENV
+          echo "CCACHE_DIR=${{ github.workspace }}/.ccache" >> $GITHUB_ENV
+          echo "PATH=/usr/lib/ccache:$PATH" >> $GITHUB_ENV
+          echo "CC='ccache clang'" >> $GITHUB_ENV
+          echo "CXX='ccache clang++'" >> $GITHUB_ENV
+          bash do_build.sh ginkgo c k R
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: KernelSU-Ginkgo-${{ github.sha }}
+          path: /home/ai/feryw/actions-runner/_work/flop_trinket-mi_kernel/*ginkgo*.zip
+
+      - name: Release Ginkgo Kernel
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ginkgo-${{ github.sha }}
+          name: KernelSU Ginkgo Build - ${{ github.sha }}
+          body: |
+            ✅ Ginkgo Kernel built with KernelSU
+          files: /home/ai/feryw/actions-runner/_work/flop_trinket-mi_kernel/*ginkgo*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

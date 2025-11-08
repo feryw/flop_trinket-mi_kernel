@@ -37,6 +37,7 @@ static int cmdline_proc_show(struct seq_file *m, void *v)
 		return 0;
 	}
 #endif
+
 	seq_puts(m, saved_command_line);
 	seq_putc(m, '\n');
 	return 0;

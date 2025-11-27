@@ -141,7 +141,7 @@ DO_MENUCONFIG=0
 IS_RELEASE=0
 DO_TG=0
 DO_REGEN=0
-DO_BASHUP=0
+DO_ZXZ=0
 DO_FLTO=0
 for arg in "$@"; do
     if [[ "$arg" == *m* ]]; then
@@ -169,8 +169,8 @@ for arg in "$@"; do
         DO_TG=1
     fi
     if [[ "$arg" == *o* ]]; then
-        echo "INFO: bashupload upload enabled"
-        DO_BASHUP=1
+        echo "INFO: 0x0.st upload enabled"
+        DO_ZXZ=1
     fi
     if [[ "$arg" == *r* ]]; then
         echo "INFO: config regeneration mode"
@@ -229,7 +229,7 @@ fi
 CK_TYPE=""
 CK_TYPE_SHORT=""
 if [[ "$DO_KSU" == "1" ]]; then
-    CK_TYPE="KSUNext"
+    CK_TYPE="KSUNext-NOSUS"
     CK_TYPE_SHORT="KN"
 elif [ "$DO_SUKI" == "1" ]; then
     CK_TYPE="SukiSU-Ultra"
@@ -593,10 +593,10 @@ build() {
     fi
 
     if [[ "$IS_RELEASE" == "1" ]]; then
-        VERSION_STR="\"-Floppy-$FK_VER-$CK_TYPE_SHORT/release\""
+        VERSION_STR="\"-Floppy-$FK_VER-$CK_TYPE_SHORT-release\""
         VERSION_NOAUTO=1
     else
-        VERSION_STR="\"-Floppy-$FK_VER-$CK_TYPE_SHORT/\""
+        VERSION_STR="\"-Floppy-$FK_VER-$CK_TYPE_SHORT\""
     fi
 
     scripts/config --file "$KDIR/out/.config" --set-val LOCALVERSION "$VERSION_STR"
@@ -803,8 +803,8 @@ post_build() {
         echo -e "\nINFO: Kernel compiled succesfully! Zipping up..."
     else
         echo -e "\nERROR: Kernel files not found! Compilation failed?"
-        echo -e "\nINFO: Uploading log to bashupload.com\n"
-        curl -T log.txt bashupload.com || echo "WARNING: Failed to upload log to bashupload.com (ignored)"
+        echo -e "\nINFO: Uploading log to 0x0.st\n"
+        curl -F'file=@log.txt' http://0x0.st || echo "WARNING: Failed to upload log to 0x0.st (ignored)"
         exit 1
     fi
 
@@ -843,9 +843,9 @@ post_build() {
 }
 
 upload() {
-    if [[ "$DO_BASHUP" == "1" ]]; then
-    echo -e "\nINFO: Uploading to bashupload.com...\n"
-    curl -T "$ZIP_PATH" bashupload.com || echo "WARNING: Failed to upload build to bashupload.com (ignored)"
+    if [[ "$DO_ZXZ" == "1" ]]; then
+    echo -e "\nINFO: Uploading to 0x0.st...\n"
+    curl -F'file=@'"$ZIP_PATH" http://0x0.st || echo "WARNING: Failed to upload build to 0x0.st (ignored)"
     fi
 
     if [[ "$DO_TG" == "1" ]]; then
@@ -854,8 +854,8 @@ upload() {
             echo "INFO: Done!"
     fi
     if [[ "$LOG_UPLOAD" == "1" ]]; then
-        echo -e "\nINFO: Uploading log to bashupload.com\n"
-        curl -T log.txt bashupload.com || echo "WARNING: Failed to upload log to bashupload.com (ignored)"
+        echo -e "\nINFO: Uploading log to 0x0.st\n"
+        curl -F'file=@log.txt' http://0x0.st || echo "WARNING: Failed to upload log to 0x0.st (ignored)"
     fi
     # Delete any leftover zip files
     # rm -f "$WP/FloppyKernel*zip"

@@ -387,8 +387,6 @@ SYSCALL_DEFINE3(faccessat, int, dfd, const char __user *, filename, int, mode)
 #endif
 
 #ifdef CONFIG_KSU_SUSFS
-	ksu_handle_faccessat(&dfd, &filename, &mode, NULL);
-
     if (likely(susfs_is_current_proc_umounted())) {
         goto orig_flow;
     }

@@ -67,7 +67,7 @@ fun SettingScreen(navigator: DestinationsNavigator) {
     var isGlobalNamespaceEnabled by rememberSaveable { mutableStateOf(false) }
     isGlobalNamespaceEnabled = isGlobalNamespaceEnabled()
 
-    val isManager = Natives.becomeManager(ksuApp.packageName)
+    val isManager = Natives.isManager
     val ksuVersion = if (isManager) Natives.version else null
 
     Scaffold(
@@ -84,7 +84,6 @@ fun SettingScreen(navigator: DestinationsNavigator) {
             AboutDialog(it)
         }
         val loadingDialog = rememberLoadingDialog()
-        val shrinkDialog = rememberConfirmDialog()
 
         Column(
             modifier = Modifier
@@ -146,22 +145,53 @@ fun SettingScreen(navigator: DestinationsNavigator) {
             }
 
             if (ksuVersion != null) {
-                if (Natives.version >= Natives.MINIMAL_SUPPORTED_SU_COMPAT) {
-                    var isSuDisabled by rememberSaveable {
-                        mutableStateOf(!Natives.isSuEnabled())
-                    }
-                    SwitchItem(
-                        icon = Icons.Filled.RemoveModerator,
-                        title = stringResource(id = R.string.settings_disable_su),
-                        summary = stringResource(id = R.string.settings_disable_su_summary),
-                        checked = isSuDisabled
-                    ) { checked ->
-                        val shouldEnable = !checked
-                        if (Natives.setSuEnabled(shouldEnable)) {
-                            isSuDisabled = !shouldEnable
-                        }
+                var isSuDisabled by rememberSaveable {
+                    mutableStateOf(!Natives.isSuEnabled())
+                }
+                SwitchItem(
+                    icon = Icons.Filled.RemoveModerator,
+                    title = stringResource(id = R.string.settings_disable_su),
+                    summary = stringResource(id = R.string.settings_disable_su_summary),
+                    checked = isSuDisabled
+                ) { checked ->
+                    val shouldEnable = !checked
+                    if (Natives.setSuEnabled(shouldEnable)) {
+                        isSuDisabled = !shouldEnable
                     }
                 }
+
+                var isKernelUmountDisabled by rememberSaveable {
+                    mutableStateOf(!Natives.isKernelUmountEnabled())
+                }
+                SwitchItem(
+                    icon = Icons.Filled.FolderDelete,
+                    title = stringResource(id = R.string.settings_disable_kernel_umount),
+                    summary = stringResource(id = R.string.settings_disable_kernel_umount_summary),
+                    checked = isKernelUmountDisabled
+                ) { checked ->
+                    val shouldEnable = !checked
+                    if (Natives.setKernelUmountEnabled(shouldEnable)) {
+                        isKernelUmountDisabled = !shouldEnable
+                    }
+                }
+
+                var isEnhancedSecurityDisabled by rememberSaveable {
+                    mutableStateOf(!Natives.isEnhancedSecurityEnabled())
+                }
+
+                SwitchItem(
+                    icon = Icons.Filled.EnhancedEncryption,
+                    title = stringResource(id = R.string.settings_enable_enhanced_security),
+                    summary = stringResource(id = R.string.settings_enable_enhanced_security_summary),
+                    checked = isEnhancedSecurityDisabled
+                ) { checked ->
+
+                    val shouldEnable = !checked   // SAME as kernel umount logic
+
+                    if (Natives.setEnhancedSecurityEnabled(shouldEnable)) {
+                        isEnhancedSecurityDisabled = !shouldEnable
+                    }
+}
                 
                 SwitchItem(
                     icon = Icons.Filled.Engineering,
@@ -183,67 +213,7 @@ fun SettingScreen(navigator: DestinationsNavigator) {
 
             val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
 
-            val suSFS = getSuSFS()
-            val isSUS_SU = hasSuSFs_SUS_SU() == "Supported"
-            if (suSFS == "Supported") {
-                if (isSUS_SU) {
-                    var isEnabled by rememberSaveable {
-                        mutableStateOf(susfsSUS_SU_Mode() == "2")
-                    }
-
-                    LaunchedEffect(Unit) {
-                        isEnabled = susfsSUS_SU_Mode() == "2"
-                    }
-
-                    SwitchItem(
-                        icon = Icons.Filled.VisibilityOff,
-                        title = stringResource(id = R.string.settings_susfs_toggle),
-                        summary = stringResource(id = R.string.settings_susfs_toggle_summary),
-                        checked = isEnabled
-                    ) {
-                        if (it) {
-                            susfsSUS_SU_2()
-                        } else {
-                            susfsSUS_SU_0()
-                        }
-                        prefs.edit { putBoolean("enable_sus_su", it) }
-                        isEnabled = it
-                    }
-                }
-            }
-
-            var useOverlayFs by rememberSaveable {
-                mutableStateOf(readMountSystemFile())
-            }
-
-            LaunchedEffect(Unit) {
-                useOverlayFs = readMountSystemFile()
-            }
-
             var showRebootDialog by remember { mutableStateOf(false) }
-
-            val isOverlayAvailable = overlayFsAvailable()
-
-            if (ksuVersion != null && isOverlayAvailable) {
-                SwitchItem(
-                    icon = Icons.Filled.Build,
-                    title = stringResource(id = R.string.use_overlay_fs),
-                    summary = stringResource(id = R.string.use_overlay_fs_summary),
-                    checked = useOverlayFs
-                ) {
-                    prefs.edit { putBoolean("use_overlay_fs", it) }
-                    useOverlayFs = it
-                    if (useOverlayFs) {
-                        moduleBackup()
-                        updateMountSystemFile(true)
-                    } else {
-                        moduleMigration()
-                        updateMountSystemFile(false)
-                    }
-                    if (isManager) install()
-                    showRebootDialog = true
-                }
-            }
 
             if (showRebootDialog) {
                 AlertDialog(
@@ -284,34 +254,6 @@ fun SettingScreen(navigator: DestinationsNavigator) {
             ) {
                 prefs.edit { putBoolean("check_update", it) }
                 checkUpdate = it
-            }
-
-            if (isOverlayAvailable && useOverlayFs) {
-                val shrink = stringResource(id = R.string.shrink_sparse_image)
-                val shrinkMessage = stringResource(id = R.string.shrink_sparse_image_message)
-                ListItem(
-                    leadingContent = {
-                        Icon(
-                            Icons.Filled.Compress,
-                            shrink
-                        )
-                    },
-                    headlineContent = { Text(
-                        text = shrink,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    ) },
-                    modifier = Modifier.clickable {
-                        scope.launch {
-                            val result = shrinkDialog.awaitConfirm(title = shrink, content = shrinkMessage)
-                            if (result == ConfirmResult.Confirmed) {
-                                loadingDialog.withLoading {
-                                    shrinkModules()
-                                }
-                            }
-                        }
-                    }
-                )
             }
 
             val customization = stringResource(id = R.string.customization)
@@ -372,7 +314,7 @@ fun SettingScreen(navigator: DestinationsNavigator) {
                 )
             }
 
-            val lkmMode = Natives.version >= Natives.MINIMAL_SUPPORTED_KERNEL_LKM && Natives.isLkmMode
+            val lkmMode = Natives.isLkmMode
             if (lkmMode) {
                 UninstallItem(navigator) {
                     loadingDialog.withLoading(it)

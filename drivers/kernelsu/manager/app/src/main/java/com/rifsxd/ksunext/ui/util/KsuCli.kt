@@ -31,38 +31,8 @@ import java.util.*
 private const val TAG = "KsuCli"
 private const val BUSYBOX = "/data/adb/ksu/bin/busybox"
 
-private val ksuDaemonMagicPath by lazy {
-    "${ksuApp.applicationInfo.nativeLibraryDir}${File.separator}libksud_magic.so"
-}
-
-private val ksuDaemonOverlayfsPath by lazy {
-    "${ksuApp.applicationInfo.nativeLibraryDir}${File.separator}libksud_overlayfs.so"
-}
-
-fun readMountSystemFile(): Boolean {
-    val filePath = "/data/adb/ksu/mount_system"
-    val result = ShellUtils.fastCmd("cat $filePath").trim()
-    return result == "OVERLAYFS"
-}
-
-// Get the path based on the user's choice
-fun getKsuDaemonPath(): String {
-    val useOverlayFs = readMountSystemFile()
-
-    return if (useOverlayFs) {
-        ksuDaemonOverlayfsPath
-    } else {
-        ksuDaemonMagicPath
-    }
-}
-
-fun updateMountSystemFile(useOverlayFs: Boolean) {
-    val filePath = "/data/adb/ksu/mount_system"
-    if (useOverlayFs) {
-        ShellUtils.fastCmd("echo -n OVERLAYFS > $filePath")
-    } else {
-        ShellUtils.fastCmd("echo -n MAGIC_MOUNT > $filePath")
-    }
+private fun getKsuDaemonPath(): String {
+    return ksuApp.applicationInfo.nativeLibraryDir + File.separator + "libksud.so"
 }
 
 data class FlashResult(val code: Int, val err: String, val showReboot: Boolean) {
@@ -92,7 +62,7 @@ fun Uri.getFileName(context: Context): String? {
 fun createRootShellBuilder(globalMnt: Boolean = false): Shell.Builder {
     return Shell.Builder.create().run {
         val cmd = buildString {
-            append("$ksuDaemonMagicPath debug su")
+            append("${getKsuDaemonPath()} debug su")
             if (globalMnt) append(" -g")
             append(" || ")
             append("su")
@@ -123,6 +93,23 @@ fun execKsud(args: String, newShell: Boolean = false): Boolean {
     } else {
         ShellUtils.fastCmdResult("${getKsuDaemonPath()} $args")
     }
+}
+
+suspend fun getFeatureStatus(feature: String): String = withContext(Dispatchers.IO) {
+    val shell = createRootShell(true)
+    
+    val out = shell.newJob()
+        .add("${getKsuDaemonPath()} feature check $feature").to(ArrayList<String>(), null).exec().out
+    out.firstOrNull()?.trim().orEmpty()
+}
+
+suspend fun getFeaturePersistValue(feature: String): Long? = withContext(Dispatchers.IO) {
+    val shell = createRootShell(true)
+    
+    val out = shell.newJob()
+        .add("${getKsuDaemonPath()} feature get --config $feature").to(ArrayList<String>(), null).exec().out
+    val valueLine = out.firstOrNull { it.trim().startsWith("Value:") } ?: return@withContext null
+    valueLine.substringAfter("Value:").trim().toLongOrNull()
 }
 
 fun install() {
@@ -257,10 +244,6 @@ fun uninstallPermanently(
     return FlashResult(result)
 }
 
-suspend fun shrinkModules(): Boolean = withContext(Dispatchers.IO) {
-    execKsud("module shrink", true)
-}
-
 @Parcelize
 sealed class LkmSelection : Parcelable {
     data class LkmUri(val uri: Uri) : LkmSelection()
@@ -367,11 +350,6 @@ suspend fun getSupportedKmis(): List<String> = withContext(Dispatchers.IO) {
     val cmd = "boot-info supported-kmi"
     val out = Shell.cmd("${getKsuDaemonPath()} $cmd").to(ArrayList(), null).exec().out
     out.filter { it.isNotBlank() }.map { it.trim() }
-}
-
-fun overlayFsAvailable(): Boolean {
-    // check /proc/filesystems
-    return ShellUtils.fastCmdResult("cat /proc/filesystems | grep overlay")
 }
 
 fun hasMagisk(): Boolean {
@@ -529,42 +507,6 @@ fun moduleMigration(): Boolean {
     return ShellUtils.fastCmdResult(command)
 }
 
-private val suSFSDaemonPath by lazy {
-    "${ksuApp.applicationInfo.nativeLibraryDir}${File.separator}libsusfsd.so"
-}
-
-fun getSuSFS(): String {
-    return ShellUtils.fastCmd("$suSFSDaemonPath support")
-}
-
-fun getSuSFSVersion(): String {
-    return ShellUtils.fastCmd("$suSFSDaemonPath version")
-}
-
-fun getSuSFSVariant(): String {
-    return ShellUtils.fastCmd("$suSFSDaemonPath variant")
-}
-
-fun getSuSFSFeatures(): String {
-    return ShellUtils.fastCmd("$suSFSDaemonPath features")
-}
-
-fun hasSuSFs_SUS_SU(): String {
-    return ShellUtils.fastCmd("$suSFSDaemonPath sus_su support")
-}
-
-fun susfsSUS_SU_0(): String {
-    return ShellUtils.fastCmd("$suSFSDaemonPath sus_su 0")
-}
-
-fun susfsSUS_SU_2(): String {
-    return ShellUtils.fastCmd("$suSFSDaemonPath sus_su 2")
-}
-
-fun susfsSUS_SU_Mode(): String {
-    return ShellUtils.fastCmd("$suSFSDaemonPath sus_su mode")
-}
-
 fun currentMountSystem(): String {
     val result = ShellUtils.fastCmd("${getKsuDaemonPath()} module mount").trim()
     return result.substringAfter(":").substringAfter(" ").trim()
@@ -576,7 +518,7 @@ fun getModuleSize(dir: File): Long {
 }
 
 fun isSuCompatDisabled(): Boolean {
-    return Natives.version >= Natives.MINIMAL_SUPPORTED_SU_COMPAT && !Natives.isSuEnabled()
+    return !Natives.isSuEnabled()
 }
 
 fun zygiskRequired(dir: File): Boolean {

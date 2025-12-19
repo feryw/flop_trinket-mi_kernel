@@ -71,7 +71,7 @@ fun HomeScreen(navigator: DestinationsNavigator) {
     val kernelVersion = getKernelVersion()
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
 
-    val isManager = Natives.becomeManager(ksuApp.packageName)
+    val isManager = Natives.isManager
     val fullFeatured = isManager && !Natives.requireNewKernel() && rootAvailable()
     val ksuVersion = if (isManager) Natives.version else null
     val ksuVersionTag = if (isManager) Natives.getVersionTag() else null
@@ -106,7 +106,7 @@ fun HomeScreen(navigator: DestinationsNavigator) {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             val lkmMode = ksuVersion?.let {
-                if (it >= Natives.MINIMAL_SUPPORTED_KERNEL_LKM && kernelVersion.isGKI()) Natives.isLkmMode else null
+                if (kernelVersion.isGKI()) Natives.isLkmMode else null
             }
 
             StatusCard(kernelVersion, ksuVersion, lkmMode, ksuVersionTag = ksuVersionTag) {
@@ -703,7 +703,7 @@ private fun InfoCard(autoExpand: Boolean = false) {
 
     val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
 
-    val isManager = Natives.becomeManager(ksuApp.packageName)
+    val isManager = Natives.isManager
     val ksuVersion = if (isManager) Natives.version else null
 
     var expanded by rememberSaveable { mutableStateOf(false) }
@@ -759,8 +759,7 @@ private fun InfoCard(autoExpand: Boolean = false) {
                 InfoCardItem(
                     label = stringResource(R.string.home_manager_version),
                     content = if (
-                        developerOptionsEnabled &&
-                        Natives.version >= Natives.MINIMAL_SUPPORTED_MANAGER_UID
+                        developerOptionsEnabled
                     ) {
                         "${managerVersion.first} (${managerVersion.second}) | UID: ${Natives.getManagerUid()}"
                     } else {
@@ -769,8 +768,7 @@ private fun InfoCard(autoExpand: Boolean = false) {
                     icon = Icons.Filled.AutoAwesomeMotion,
                 )
 
-                if (ksuVersion != null &&
-                    Natives.version >= Natives.MINIMAL_SUPPORTED_HOOK_MODE) {
+                if (ksuVersion != null) {
 
                     val hookMode =
                         Natives.getHookMode()
@@ -793,23 +791,6 @@ private fun InfoCard(autoExpand: Boolean = false) {
                         content = currentMountSystem().ifEmpty { stringResource(R.string.unavailable) },
                         icon = Icons.Filled.SettingsSuggest,
                     )
-
-                    val suSFS = getSuSFS()
-                    if (suSFS == "Supported") {
-                        val isSUS_SU = hasSuSFs_SUS_SU() == "Supported"
-                        val susSUMode = if (isSUS_SU) {
-                            val mode = susfsSUS_SU_Mode()
-                            val modeString =
-                                if (mode == "2") stringResource(R.string.enabled) else stringResource(R.string.disabled)
-                            "| SuS SU: $modeString"
-                        } else ""
-                        Spacer(Modifier.height(16.dp))
-                        InfoCardItem(
-                            label = stringResource(R.string.home_susfs_version),
-                            content = "${stringResource(R.string.susfs_supported)} | ${getSuSFSVersion()} (${getSuSFSVariant()}) $susSUMode",
-                            icon = painterResource(R.drawable.ic_sus),
-                        )
-                    }
 
                     if (Natives.isZygiskEnabled()) {
                         Spacer(Modifier.height(16.dp))

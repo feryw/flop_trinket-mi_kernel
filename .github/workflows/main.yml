@@ -70,7 +70,7 @@ jobs:
           echo "PATH=/usr/lib/ccache:$PATH" >> $GITHUB_ENV
           # echo "CC='ccache clang'" >> $GITHUB_ENV
           # echo "CXX='ccache clang++'" >> $GITHUB_ENV
-          bash do_build.sh ginkgo c k R
+          bash do_build.sh ginkgo c u R
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v6

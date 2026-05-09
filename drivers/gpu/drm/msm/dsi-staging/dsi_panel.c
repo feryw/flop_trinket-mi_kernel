@@ -132,7 +132,7 @@ int dsi_dsc_create_pps_buf_cmd(struct msm_display_dsc_info *dsc, char *buf,
 	*bp++ = 1;
 	*bp++ = 0;
 	*bp++ = 0;
-	*bp++ = 10;
+	*bp++ = dsc->pps_delay_ms;
 	*bp++ = 0;
 	*bp++ = 128;
 
@@ -825,10 +825,10 @@ int dsi_panel_set_doze_backlight(struct dsi_panel *panel, u32 bl_lvl)
 
 	if (bl_lvl > 0 && bl_lvl < 16) {
 		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DOZE_LB);
-		pr_info("set doze backlight to low brightness:%d\n", bl_lvl);
+		pr_debug("set doze backlight to low brightness:%d\n", bl_lvl);
 	} else if (bl_lvl >= 16) {
 		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DOZE_HB);
-		pr_info("set doze backlight to high brightness:%d\n", bl_lvl);
+		pr_debug("set doze backlight to high brightness:%d\n", bl_lvl);
 	}
 
 	if (rc)
@@ -1042,7 +1042,7 @@ int dsi_panel_set_backlight(struct dsi_panel *panel, u32 bl_lvl)
 	case DSI_BACKLIGHT_DCS:
 		if (mi_is_laurel()) {
 			if (panel->fod_backlight_flag || panel->fod_hbm_enabled) {
-				pr_info("[FOD HBM open, skip set_backlight:%u [hbm=%d][fod_bl=%d]\n",
+				pr_debug("[FOD HBM open, skip set_backlight:%u [hbm=%d][fod_bl=%d]\n",
 					bl_lvl, panel->fod_hbm_enabled,
 					panel->fod_backlight_flag);
 			} else {
@@ -3261,6 +3261,13 @@ static int dsi_panel_parse_dsc_params(struct dsi_display_mode *mode,
 	}
 	priv_info->dsc.bpc = data;
 
+	rc = utils->read_u32(utils->data, "qcom,mdss-pps-delay-ms", &data);
+	if (rc) {
+		pr_debug("pps-delay-ms not specified, defaulting to 0\n");
+		priv_info->dsc.pps_delay_ms = 0;
+	}
+	priv_info->dsc.pps_delay_ms = data;
+
 	rc = utils->read_u32(utils->data, "qcom,mdss-dsc-bit-per-pixel",
 			&data);
 	if (rc) {
@@ -4643,7 +4650,7 @@ int dsi_panel_set_lp1(struct dsi_panel *panel)
 			       panel->name, rc);
 
 		if (panel->fod_hbm_enabled || panel->fod_backlight_flag) {
-			pr_info("skip doze backlight,[hbm=%d][fod_bl=%d]\n",
+			pr_debug("skip doze backlight,[hbm=%d][fod_bl=%d]\n",
 				panel->fod_hbm_enabled,
 				panel->fod_backlight_flag);
 		} else {
@@ -4701,9 +4708,9 @@ int dsi_panel_set_nolp(struct dsi_panel *panel)
 	mutex_lock(&panel->panel_lock);
 	if (mi_is_laurel()) {
 		if (!panel->fod_hbm_enabled || !panel->fod_backlight_flag) {
-			pr_info("fod is open in nolp\n", __func__);
+			pr_debug("fod is open in nolp\n");
 		} else {
-			pr_info("%s skip send DSI_CMD_SET_NOLP cmd\n",
+			pr_debug("%s skip send DSI_CMD_SET_NOLP cmd\n",
 				__func__);
 		}
 	} else if (!panel->panel_initialized) {

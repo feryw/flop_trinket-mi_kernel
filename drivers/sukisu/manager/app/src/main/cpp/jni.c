@@ -123,7 +123,7 @@ NativeBridge(getAppProfile, jobject, jstring pkg, jint uid) {
 	profile.version = KSU_APP_PROFILE_VER;
 
 	strcpy(profile.key, key);
-	profile.current_uid = uid;
+	profile.curr_uid = uid;
 
 	bool useDefaultProfile = get_app_profile(&profile) != 0;
 
@@ -148,7 +148,7 @@ NativeBridge(getAppProfile, jobject, jstring pkg, jint uid) {
 	jfieldID umountModulesField = GetEnvironment()->GetFieldID(env, cls, "umountModules", "Z");
 
 	GetEnvironment()->SetObjectField(env, obj, keyField, GetEnvironment()->NewStringUTF(env, profile.key));
-	GetEnvironment()->SetIntField(env, obj, currentUidField, profile.current_uid);
+	GetEnvironment()->SetIntField(env, obj, currentUidField, profile.curr_uid);
 
 	if (useDefaultProfile) {
 		// no profile found, so just use default profile:
@@ -250,7 +250,7 @@ NativeBridge(setAppProfile, jboolean, jobject profile) {
 
 	strcpy(p.key, p_key);
 	p.allow_su = allowSu;
-	p.current_uid = currentUid;
+	p.curr_uid = currentUid;
 
 	if (allowSu) {
 		p.rp_config.use_default = GetEnvironment()->GetBooleanField(env, profile, rootUseDefaultField);
@@ -299,20 +299,20 @@ NativeBridge(setSuEnabled, jboolean, jboolean enabled) {
 	return set_su_enabled(enabled);
 }
 
-NativeBridgeNP(isKernelUmountEnabled, jboolean) {
-    return is_kernel_umount_enabled();
-}
-
-NativeBridge(setKernelUmountEnabled, jboolean, jboolean enabled) {
-    return set_kernel_umount_enabled(enabled);
-}
-
 NativeBridgeNP(isSuLogEnabled, jboolean) {
     return is_sulog_enabled();
 }
 
 NativeBridge(setSuLogEnabled, jboolean, jboolean enabled) {
     return set_sulog_enabled(enabled);
+}
+
+NativeBridgeNP(isKernelUmountEnabled, jboolean) {
+    return is_kernel_umount_enabled();
+}
+
+NativeBridge(setKernelUmountEnabled, jboolean, jboolean enabled) {
+    return set_kernel_umount_enabled(enabled);
 }
 
 NativeBridge(getUserName, jstring, jint uid) {
@@ -335,6 +335,38 @@ NativeBridgeNP(getHookType, jstring) {
 	return GetEnvironment()->NewStringUTF(env, hook_type);
 }
 
+// Get KernelPatch implement
+NativeBridgeNP(getKernelPatchImplement, jobject) {
+	int type = get_kernel_patch_implement();
+
+	jclass cls = GetEnvironment()->FindClass(env,
+											 "com/resukisu/resukisu/Natives$KernelPatchImplement");
+	if (cls == nullptr) {
+		jclass exCls = GetEnvironment()->FindClass(env, "java/lang/IllegalStateException");
+		GetEnvironment()->ThrowNew(env, exCls, "Could not find KernelPatchImplement class");
+		return nullptr;
+	}
+
+	jmethodID valuesMethod = GetEnvironment()->GetStaticMethodID(env, cls, "values",
+																 "()[Lcom/resukisu/resukisu/Natives$KernelPatchImplement;");
+	if (valuesMethod == nullptr) {
+		jclass exCls = GetEnvironment()->FindClass(env, "java/lang/IllegalStateException");
+		GetEnvironment()->ThrowNew(env, exCls,
+								   "Could not find values() method in KernelPatchImplement");
+		return nullptr;
+	}
+
+	jobjectArray valuesArray = (jobjectArray) GetEnvironment()->CallStaticObjectMethod(env, cls,
+																					   valuesMethod);
+	if (valuesArray == nullptr) {
+		jclass exCls = GetEnvironment()->FindClass(env, "java/lang/IllegalStateException");
+		GetEnvironment()->ThrowNew(env, exCls, "Could get valuesArray in KernelPatchImplement");
+		return nullptr;
+	}
+
+	return GetEnvironment()->GetObjectArrayElement(env, valuesArray, (jsize) type);
+}
+
 // dynamic manager
 NativeBridge(setDynamicManager, jboolean, jint size, jstring hash) {
 	if (!hash) {
@@ -351,8 +383,8 @@ NativeBridge(setDynamicManager, jboolean, jint size, jstring hash) {
 }
 
 NativeBridgeNP(getDynamicManager, jobject) {
-	struct dynamic_manager_user_config config;
-	bool result = get_dynamic_manager(&config);
+	struct ksu_dynamic_manager_cmd cmd;
+	bool result = get_dynamic_manager(&cmd);
 
 	if (!result) {
         LOGD("getDynamicManager: failed to get dynamic manager config");
@@ -362,10 +394,10 @@ NativeBridgeNP(getDynamicManager, jobject) {
 	jobject obj = CREATE_JAVA_OBJECT("com/resukisu/resukisu/Natives$DynamicManagerConfig");
 	jclass cls = GetEnvironment()->FindClass(env, "com/resukisu/resukisu/Natives$DynamicManagerConfig");
 
-	SET_INT_FIELD(obj, cls, size, (jint)config.size);
-	SET_STRING_FIELD(obj, cls, hash, config.hash);
+	SET_INT_FIELD(obj, cls, size, (jint)cmd.size);
+	SET_STRING_FIELD(obj, cls, hash, (const char *)cmd.hash);
 
-    LOGD("getDynamicManager: size=0x%x, hash=%.16s...", config.size, config.hash);
+    LOGD("getDynamicManager: size=0x%x, hash=%.16s...", cmd.size, cmd.hash);
 	return obj;
 }
 
@@ -419,47 +451,49 @@ NativeBridgeNP(getManagersList, jobject) {
     return obj;
 }
 
-int fork_dont_care_and_exec_ksud(const char *path) {
-	int pid = fork();
-	if (pid < 0) {
-		PLOGE("fork");
-		return pid;
-	} else if (pid > 0) {
-		int status = 0;
-		if (TEMP_FAILURE_RETRY(waitpid(pid, &status, 0)) < 0) {
-			PLOGE("waitpid");
-			return -1;
-		}
-		if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-			LOGE("magica bootstrap child failed, status=%d", status);
-		}
-		return pid;
-	}
+int fork_dont_care_and_exec_ksud(const char *path, const char *pkg) {
+    int pid = fork();
+    if (pid < 0) {
+        PLOGE("fork");
+        return pid;
+    } else if (pid > 0) {
+        int status = 0;
+        if (TEMP_FAILURE_RETRY(waitpid(pid, &status, 0)) < 0) {
+            PLOGE("waitpid");
+            return -1;
+        }
+        if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+            LOGE("magica bootstrap child failed, status=%d", status);
+        }
+        return pid;
+    }
 
-	if (setuid(0) != 0) {
-		PLOGE("setuid");
-		_exit(1);
-	}
+    if (setuid(0) != 0) {
+        PLOGE("setuid");
+        _exit(1);
+    }
 
-	pid = fork();
-	if (pid < 0) {
-		PLOGE("fork 2");
-		_exit(1);
-	} else if (pid > 0) {
-		_exit(0);
-	}
+    pid = fork();
+    if (pid < 0) {
+        PLOGE("fork 2");
+        _exit(1);
+    } else if (pid > 0) {
+        _exit(0);
+    }
 
-	execl(path, "ksud", "late-load", "--magica", "5555", nullptr);
-	PLOGE("exec magica");
-	_exit(1);
+    execl(path, "ksud", "late-load", "--magica", "5555","--package-name", pkg, nullptr);
+    PLOGE("exec magica");
+    _exit(1);
 }
 
 JNIEXPORT void JNICALL
 Java_com_resukisu_resukisu_magica_AppZygotePreload_forkDontCareAndExecKsud(JNIEnv *env,
                                                                            jclass clazz,
-                                                                           jstring ksud_path) {
+                                                                           jstring ksud_path, jstring pkg_name) {
     const char *path = GetEnvironment()->GetStringUTFChars(env, ksud_path, nullptr);
-    LOGD("executing magica %s", path);
-	fork_dont_care_and_exec_ksud(path);
+    const char *pkg = GetEnvironment()->GetStringUTFChars(env, pkg_name, nullptr);
+    LOGD("executing magica %s (pkg %s)", path, pkg);
+    fork_dont_care_and_exec_ksud(path, pkg);
     GetEnvironment()->ReleaseStringUTFChars(env, ksud_path, path);
+    GetEnvironment()->ReleaseStringUTFChars(env, pkg_name, pkg);
 }

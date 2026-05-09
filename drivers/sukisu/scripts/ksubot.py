@@ -1,5 +1,6 @@
 import asyncio
-import os,re
+import os
+import random
 import sys,json
 from telegram import Bot,InputMediaDocument
 from telegram.constants import ParseMode
@@ -125,6 +126,7 @@ def check_environ():
         MESSAGE_THREAD_ID = None
 
 async def send_media_group(bot: Bot, chat_id: int, media: list, message_thread_id=None):
+    await asyncio.sleep(random.uniform(0.2, 0.8))
     return await bot.send_media_group(chat_id=chat_id, media=media, message_thread_id=message_thread_id,
                                    read_timeout=350,write_timeout=350,connect_timeout=350,pool_timeout=350)
 
@@ -164,7 +166,7 @@ async def main():
     print("---")
     print("[+] Sending")
     if no_caption:
-        await bot.send_message(chat_id=CHAT_ID, text=caption, parse_mode=ParseMode.HTML, message_thread_id=MESSAGE_THREAD_ID)
+        await bot.send_message(chat_id=CHAT_ID, text=caption, parse_mode=ParseMode.HTML, message_thread_id=MESSAGE_THREAD_ID, disable_web_page_preview=True)
     if len(upload_debug_files) > 0:
         await send_media_group(bot=bot, chat_id=CHAT_ID, media=upload_debug_files, message_thread_id=MESSAGE_THREAD_ID)
     print("[+] Debug files uploaded,starting to upload release files")

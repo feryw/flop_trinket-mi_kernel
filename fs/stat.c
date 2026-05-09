@@ -23,6 +23,9 @@
 #endif
 
 #include <linux/uaccess.h>
+#ifdef CONFIG_ZEROMOUNT
+#include <linux/zeromount.h>
+#endif
 #include <asm/unistd.h>
 
 /**
@@ -35,22 +38,11 @@
  * operation is supplied.
  */
 #ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
-extern void susfs_sus_ino_for_generic_fillattr(unsigned long ino, struct kstat *stat);
+extern void susfs_generic_fillattr_spoofer(struct inode *inode, struct kstat *stat);
 #endif
 
 void generic_fillattr(struct inode *inode, struct kstat *stat)
 {
-#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
-	if (likely(susfs_is_current_proc_umounted()) &&
-			unlikely(inode->i_state & BIT_SUS_KSTAT)) {
-		susfs_sus_ino_for_generic_fillattr(inode->i_ino, stat);
-		stat->mode = inode->i_mode;
-		stat->rdev = inode->i_rdev;
-		stat->uid = inode->i_uid;
-		stat->gid = inode->i_gid;
-		return;
-	}
-#endif
 	stat->dev = inode->i_sb->s_dev;
 	stat->ino = inode->i_ino;
 	stat->mode = inode->i_mode;
@@ -64,6 +56,9 @@ void generic_fillattr(struct inode *inode, struct kstat *stat)
 	stat->ctime = inode->i_ctime;
 	stat->blksize = i_blocksize(inode);
 	stat->blocks = inode->i_blocks;
+#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
+	susfs_generic_fillattr_spoofer(inode, stat);
+#endif
 
 	if (IS_NOATIME(inode))
 		stat->result_mask &= ~STATX_ATIME;
@@ -95,9 +90,18 @@ int vfs_getattr_nosec(const struct path *path, struct kstat *stat,
 	request_mask &= STATX_ALL;
 	query_flags &= KSTAT_QUERY_FLAGS;
 	if (inode->i_op->getattr)
+#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
+	{
+		int err = inode->i_op->getattr(path, stat, request_mask,
+					    query_flags);
+		if (!err)
+			susfs_generic_fillattr_spoofer(inode, stat);
+		return err;
+	}
+#else
 		return inode->i_op->getattr(path, stat, request_mask,
 					    query_flags);
-
+#endif
 	generic_fillattr(inode, stat);
 	return 0;
 }
@@ -182,6 +186,57 @@ EXPORT_SYMBOL(vfs_statx_fd);
  *
  * 0 will be returned on success, and a -ve error code if unsuccessful.
  */
+
+#ifdef CONFIG_ZEROMOUNT
+static int zeromount_stat_hook(int dfd, const char __user *filename,
+			       struct kstat *stat, unsigned int request_mask,
+			       int flags)
+{
+	char kname[NAME_MAX + 1];
+	long copied;
+
+	if (zm_is_recursive() || !filename)
+		return -ENOENT;
+
+	copied = strncpy_from_user(kname, filename, sizeof(kname));
+	if (copied <= 0 || kname[0] == '\0' || kname[0] == '/')
+		return -ENOENT;
+
+	{
+		char *abs_path = zeromount_build_absolute_path(dfd, kname);
+		char *resolved;
+
+		if (!abs_path)
+			return -ENOENT;
+
+		resolved = zeromount_resolve_path(abs_path);
+		kfree(abs_path);
+		if (!resolved)
+			return -ENOENT;
+
+		{
+			struct path zm_path;
+			int zm_ret;
+
+			zm_enter();
+			zm_ret = kern_path(resolved,
+					   (flags & AT_SYMLINK_NOFOLLOW) ?
+					   0 : LOOKUP_FOLLOW, &zm_path);
+			zm_exit();
+			kfree(resolved);
+			if (zm_ret)
+				return -ENOENT;
+
+			zm_ret = vfs_getattr(&zm_path, stat, request_mask,
+					     (flags & AT_SYMLINK_NOFOLLOW) ?
+					     AT_SYMLINK_NOFOLLOW : 0);
+			path_put(&zm_path);
+			return zm_ret;
+		}
+	}
+}
+#endif
+
 int vfs_statx(int dfd, const char __user *filename, int flags,
 	      struct kstat *stat, u32 request_mask)
 {
@@ -199,6 +254,18 @@ int vfs_statx(int dfd, const char __user *filename, int flags,
 		lookup_flags &= ~LOOKUP_AUTOMOUNT;
 	if (flags & AT_EMPTY_PATH)
 		lookup_flags |= LOOKUP_EMPTY;
+
+#ifdef CONFIG_ZEROMOUNT
+	/* Try ZeroMount hook for relative paths. */
+	if (filename) {
+		int zm_ret;
+
+		zm_ret = zeromount_stat_hook(dfd, filename, stat,
+					     request_mask, flags);
+		if (zm_ret != -ENOENT)
+			return zm_ret;
+	}
+#endif
 
 retry:
 	error = user_path_at(dfd, filename, lookup_flags, &path);

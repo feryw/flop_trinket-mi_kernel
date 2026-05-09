@@ -9,12 +9,12 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.add
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.lazy.LazyColumn
@@ -37,6 +37,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
+import androidx.compose.material3.contentColorFor
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -156,6 +157,7 @@ fun AppProfileTemplateScreen() {
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
+                modifier = Modifier.padding(WindowInsets.navigationBars.asPaddingValues()),
                 onClick = {
                     navigator.navigateForResult(
                         Route.TemplateEditor(
@@ -172,7 +174,7 @@ fun AppProfileTemplateScreen() {
         },
         containerColor = Color.Transparent,
         contentColor = MaterialTheme.colorScheme.onSurface,
-        contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
+        contentWindowInsets = WindowInsets.safeDrawing,
     ) { innerPadding ->
         PullToRefreshBox(
             state = pullRefreshState,
@@ -254,24 +256,20 @@ private fun TemplateItem(
                 LabelText(
                     label = "GID: ${template.gid}",
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                 )
                 LabelText(
                     label = template.context,
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                 )
                 if (template.local) {
                     LabelText(
                         label = stringResource(R.string.local),
                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                 } else {
                     LabelText(
                         label = stringResource(R.string.remote),
                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                 }
             }
@@ -352,7 +350,7 @@ private fun TopBar(
 fun LabelText(
     label: String,
     containerColor: Color = MaterialTheme.colorScheme.primary,
-    contentColor: Color = MaterialTheme.colorScheme.onPrimary
+    contentColor: Color = contentColorFor(containerColor)
 ) {
     Surface(
         shape = RoundedCornerShape(4.dp),
